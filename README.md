@@ -1,66 +1,18 @@
-## Foundry
+# ERC20Revertable
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+ERC20Revertable is a simple ERC20 token that allow to revert lost tokens to the sender.
 
-Foundry consists of:
+## Revert Conditions
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- If the recipient never transfered the tokens of that ERC20 before, the sender can request to revert the tokens to the sender.
+- If the sender requested to revert the tokens to the sender, the sender needs to wait for 30 days to revert the tokens to the sender.
+- If the recipient disputed on the revert once, the sender and any future sender can't revert the tokens to the sender.
+- If the recipient is a contract, the sender can't revert the tokens.
+- If the recipient ever used the tokens of that ERC20, i.e transferd/approved before, the sender can't revert the tokens to the sender.
 
-## Documentation
+## Intended Use
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+- After a sender accidentally sends his tokens to a wrong address, the sender calls `requestTransferRevert(address recipient)` to revert the tokens to the sender.
+- The recipient can dispute on the revert by calling `disputeTransferRevert()` if the recipient was a real person and never used that token yet before.
+- The sender has to wait 30 days to allow the recipient to dispute at anytime.
+- After this period the sender can call `transferRevert(address recipient)` to revert the tokens to the sender. which eventually will check if the recipient disputed or not.

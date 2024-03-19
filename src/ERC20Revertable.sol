@@ -24,6 +24,15 @@ contract ERC20Revertable is ERC20 {
     // the receiver must not be disputed
     mapping(address => mapping(address => uint256)) private _transfers;
 
+    event TransferReverted(
+        address indexed from,
+        address indexed to,
+        uint256 value
+    );
+    event DisputeTransfer(address indexed recipient);
+    event DisputePeriodSet(address indexed recipient, uint256 period);
+    event TransferRevertRequested(address indexed recipient);
+
     error RecipientIsContract();
     error NoTransferToRevert();
     error DisputePeriodAlreadySet();
@@ -50,29 +59,6 @@ contract ERC20Revertable is ERC20 {
         _;
     }
 
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override {
-        // if sender can transfer/approve then it is not a dead address
-        if (!_disputed[from]) {
-            _disputePeriod[from] = 0;
-            _disputed[from] = true;
-        }
-        if (!_disputed[to] && !isContract(to)) {
-            // will be checked in super._update anyway
-            unchecked {
-                _transfers[from][to] += value;
-            }
-        }
-        super._update(from, to, value);
-    }
-
-    function disputeTransferRevert() external {
-        _disputed[msg.sender] = true;
-    }
-
     function isDisputed(address recipient) external view returns (bool) {
         return _disputed[recipient];
     }
@@ -81,10 +67,16 @@ contract ERC20Revertable is ERC20 {
         return _disputePeriod[recipient];
     }
 
+    function disputeTransferRevert() external {
+        _disputed[msg.sender] = true;
+        emit DisputeTransfer(msg.sender);
+    }
+
     function requestTransferRevert(
         address recipient
     ) external onlyRevertable(recipient) {
         _disputePeriod[recipient] = block.timestamp + DISPUTE_PERIOD;
+        emit DisputePeriodSet(recipient, _disputePeriod[recipient]);
     }
 
     function revertTransfer(
@@ -101,6 +93,28 @@ contract ERC20Revertable is ERC20 {
         _disputePeriod[recipient] = 0;
         _transfers[msg.sender][recipient] = 0;
         _transfer(recipient, msg.sender, revertValue);
+
+        emit TransferReverted(recipient, msg.sender, revertValue);
+    }
+
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override {
+        // if sender can transfer/approve then it is not a dead address
+        if (!_disputed[from]) {
+            _disputePeriod[from] = 0;
+            _disputed[from] = true;
+            emit DisputeTransfer(from);
+        }
+        if (!_disputed[to] && !isContract(to)) {
+            // will be checked in super._update anyway
+            unchecked {
+                _transfers[from][to] += value;
+            }
+        }
+        super._update(from, to, value);
     }
 
     function isContract(address _addr) private view returns (bool) {
